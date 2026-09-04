@@ -30,6 +30,17 @@ const cachePath = resolve(__dirname, '.spotify-cache.json')
 const limitArg = process.argv.find((a) => a.startsWith('--limit='))
 const LIMIT = limitArg ? Number(limitArg.split('=')[1]) : 1500
 
+// Presupuesto de tiempo de esta corrida: si Spotify empieza a devolver 429 con
+// backoffs largos, preferimos cortar acá, guardar lo avanzado y dejar el resto
+// para la próxima corrida (diaria) en vez de quedarnos dormidos hasta el
+// timeout del job (6h en GitHub Actions).
+const MAX_RUNTIME_MS = 10 * 60 * 1000
+// Nunca esperar más que esto por un solo 429, sin importar lo que pida el
+// header Retry-After: si Spotify pide más, es señal de cortar la corrida, no
+// de dormir esa cantidad.
+const MAX_RETRY_AFTER_S = 20
+const startedAt = Date.now()
+
 // Discos sin match: no reintentar antes de este plazo (el catálogo de Spotify
 // cambia, pero no vale la pena re-buscar algo "no encontrado" en cada corrida).
 const RETRY_NOT_FOUND_AFTER_DAYS = 30
@@ -64,9 +75,10 @@ function isStale(entry) {
   return ageDays > RETRY_NOT_FOUND_AFTER_DAYS
 }
 
-const pending = catalog.albums.filter((a) => isStale(cache[a.id])).slice(0, LIMIT)
+const allStale = catalog.albums.filter((a) => isStale(cache[a.id]))
+const pending = allStale.slice(0, LIMIT)
 console.log(
-  `Discos: ${catalog.albums.length} · en caché: ${catalog.albums.length - pending.length} · a buscar ahora: ${pending.length}`,
+  `Discos: ${catalog.albums.length} · resueltos: ${catalog.albums.length - allStale.length} · pendientes: ${allStale.length} · a buscar ahora: ${pending.length}`,
 )
 
 if (pending.length === 0) {
@@ -101,15 +113,24 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms))
 }
 
+class RateLimitedError extends Error {}
+
 async function searchAlbum(artist, title) {
   const token = await getAccessToken()
   const q = encodeURIComponent(`album:${title} artist:${artist}`)
   const url = `https://api.spotify.com/v1/search?type=album&limit=1&q=${q}`
 
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
     if (res.status === 429) {
       const retryAfter = Number(res.headers.get('retry-after') ?? '2')
+      if (retryAfter > MAX_RETRY_AFTER_S) {
+        // Backoff largo: Spotify nos está pidiendo frenar en serio. No vale la
+        // pena dormir eso dentro del job; cortamos toda la corrida acá.
+        throw new RateLimitedError(
+          `Spotify pidió esperar ${retryAfter}s (> ${MAX_RETRY_AFTER_S}s máx). Cortando la corrida.`,
+        )
+      }
       await sleep((retryAfter + 1) * 1000)
       continue
     }
@@ -128,27 +149,41 @@ async function searchAlbum(artist, title) {
 
 let found = 0
 let processed = 0
+let stoppedEarly = null
 
 for (const album of pending) {
+  if (Date.now() - startedAt > MAX_RUNTIME_MS) {
+    stoppedEarly = `Presupuesto de tiempo (${MAX_RUNTIME_MS / 1000}s) agotado`
+    break
+  }
+
   try {
     const spotifyId = await searchAlbum(album.artist, album.title)
     cache[album.id] = { spotifyId, checkedAt: new Date().toISOString() }
     album.spotifyId = spotifyId
     if (spotifyId) found++
   } catch (err) {
+    if (err instanceof RateLimitedError) {
+      console.error(err.message)
+      stoppedEarly = err.message
+      break
+    }
     console.error(err.message)
     // No cachear el fallo: se reintenta en la próxima corrida.
   }
 
   processed++
-  if (processed % 200 === 0) {
+  if (processed % 50 === 0) {
     saveProgress()
     console.log(`  ${processed}/${pending.length} procesados (${found} con match)`)
   }
 
-  // ~6 req/s: margen conservador bajo el límite de Spotify para Client Credentials.
-  await sleep(160)
+  // ~4 req/s: margen conservador bajo el límite de Spotify para Client Credentials.
+  await sleep(250)
 }
 
 saveProgress()
+if (stoppedEarly) {
+  console.log(`Corrida cortada antes de tiempo: ${stoppedEarly}`)
+}
 console.log(`Listo: ${processed} procesados, ${found} con match de Spotify.`)
