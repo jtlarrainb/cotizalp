@@ -2,9 +2,12 @@
 // disco (Artista + Título), listo para que la webapp lo sirva como asset estático.
 //
 // Uso:
-//   node scripts/build-data.mjs [ruta-al-csv]
+//   node scripts/build-data.mjs [ruta-o-url-al-csv]
 //
-// Si no se pasa ruta, usa la ubicación por defecto del scraper en OneDrive.
+// Por defecto, descarga el CSV publicado del Google Sheet "vinilos" (fuente de
+// verdad: la actualiza el scraper en la nube), en vez de un archivo local que
+// puede quedar desactualizado. Se puede pasar una ruta local o una URL propia
+// como argumento para sobreescribir el origen.
 
 import { parse } from 'csv-parse/sync'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
@@ -12,24 +15,37 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const DEFAULT_CSV_PATH =
-  'C:/Users/Jose/OneDrive/Proyectos/CotizaLP/vinilos.csv'
+const SPREADSHEET_ID = '1S4DJqsvi9qVB5pgiliHAGwXDXCj1qPZ6940WKaYuVt4'
+const SHEET_GID = '46693344'
+const DEFAULT_CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${SHEET_GID}`
 
-const csvPath = resolve(process.argv[2] ?? DEFAULT_CSV_PATH)
+const source = process.argv[2] ?? DEFAULT_CSV_URL
 const outPath = resolve(__dirname, '../src/data/discos.json')
 
-if (!existsSync(csvPath)) {
-  console.error(`No se encontró el CSV en: ${csvPath}`)
-  process.exit(1)
+let raw
+if (/^https?:\/\//i.test(source)) {
+  console.log(`Descargando datos desde: ${source}`)
+  const response = await fetch(source)
+  if (!response.ok) {
+    console.error(`No se pudo descargar el CSV (HTTP ${response.status}): ${source}`)
+    process.exit(1)
+  }
+  raw = await response.text()
+} else {
+  const csvPath = resolve(source)
+  if (!existsSync(csvPath)) {
+    console.error(`No se encontró el CSV en: ${csvPath}`)
+    process.exit(1)
+  }
+  raw = readFileSync(csvPath, 'utf-8')
 }
 
-const raw = readFileSync(csvPath, 'utf-8')
 const lines = raw.split(/\r?\n/)
 
 // La primera línea del CSV es un metadato ("Fecha de actualizacion: ..."),
 // no parte de la tabla. La guardamos y se la quitamos al parser.
 const updatedAtLine = lines[0] ?? ''
-const updatedAtMatch = updatedAtLine.match(/Fecha de actualizacion:\s*(.+)/i)
+const updatedAtMatch = updatedAtLine.match(/Fecha de actualizacion:\s*([^,]+)/i)
 const updatedAt = updatedAtMatch ? updatedAtMatch[1].trim() : null
 
 const csvBody = lines.slice(1).join('\n')
@@ -140,7 +156,7 @@ writeFileSync(
   'utf-8',
 )
 
-console.log(`CSV: ${csvPath}`)
+console.log(`Origen: ${source}`)
 console.log(`Filas leídas: ${records.length} (omitidas: ${skipped})`)
 console.log(`Discos únicos: ${albums.length}`)
 console.log(`Actualizado: ${updatedAt ?? 'desconocido'}`)
