@@ -13,6 +13,8 @@ export interface Album {
   image: string | null
   storeCount: number
   listings: Listing[]
+  /** ID de álbum de Spotify, resuelto en `scripts/fetch-spotify.mjs`. `null` si no se encontró match. */
+  spotifyId: string | null
 }
 
 export interface Catalog {

@@ -84,23 +84,31 @@ export function FeaturedAlbum({ album, hovered }: FeaturedAlbumProps) {
               Comprar más barato
             </a>
           )}
-          <a
-            href={`https://open.spotify.com/search/${spotifyQuery}`}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-full border border-[#1DB954] px-4 py-1.5 text-sm font-medium text-[#1DB954] transition-colors hover:bg-[#1DB954]/10"
-          >
-            Buscar en Spotify
-          </a>
+          {!album.spotifyId && (
+            <a
+              href={`https://open.spotify.com/search/${spotifyQuery}`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-[#1DB954] px-4 py-1.5 text-sm font-medium text-[#1DB954] transition-colors hover:bg-[#1DB954]/10"
+            >
+              Buscar en Spotify
+            </a>
+          )}
         </div>
 
-        {/*
-          Punto de integración futura: reemplazar el botón "Buscar en Spotify" por un
-          reproductor embebido (iframe open.spotify.com/embed/...) una vez resuelto el
-          álbum vía la Spotify Web API (búsqueda por artista+título -> URI del álbum).
-          Esa búsqueda requiere client credentials y no puede hacerse solo desde el
-          navegador sin exponer el secreto, así que necesitará un endpoint propio.
-        */}
+        {album.spotifyId && (
+          <iframe
+            key={album.spotifyId}
+            title={`Reproductor de Spotify: ${album.artist} - ${album.title}`}
+            src={`https://open.spotify.com/embed/album/${album.spotifyId}?utm_source=generator&theme=0`}
+            width="100%"
+            height="152"
+            className="mt-4 rounded-xl"
+            style={{ border: 0 }}
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+          />
+        )}
 
         {album.listings.length > 1 && (
           <details className="mt-4 text-sm text-neutral-400">

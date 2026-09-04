@@ -119,6 +119,21 @@ for (const record of records) {
   group.listings.push({ store, price, url, image })
 }
 
+// El match con Spotify (scripts/fetch-spotify.mjs) es lento y vive en su propia
+// pasada; para no perderlo cada vez que refrescamos precios desde el Sheet,
+// reusamos el spotifyId ya resuelto para el mismo id de álbum si existe.
+const previousSpotifyIds = new Map()
+if (existsSync(outPath)) {
+  try {
+    const previous = JSON.parse(readFileSync(outPath, 'utf-8'))
+    for (const album of previous.albums ?? []) {
+      if (album.spotifyId) previousSpotifyIds.set(album.id, album.spotifyId)
+    }
+  } catch {
+    // discos.json previo corrupto o con otro formato: se ignora y se regenera sin arrastrar IDs.
+  }
+}
+
 const albums = []
 for (const [key, group] of groups) {
   // Ordenar listados por precio ascendente (sin precio al final)
@@ -140,6 +155,7 @@ for (const [key, group] of groups) {
     image: cheapestWithImage ? cheapestWithImage.image : null,
     storeCount: new Set(group.listings.map((l) => l.store)).size,
     listings: group.listings,
+    spotifyId: previousSpotifyIds.get(key) ?? null,
   })
 }
 
