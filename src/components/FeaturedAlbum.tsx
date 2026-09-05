@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Album } from '@/types'
 import { cn, formatPrice } from '@/lib/utils'
+import { searchSpotifyAlbum } from '@/lib/spotify'
 import { VinylDisc } from './VinylDisc'
 
 interface FeaturedAlbumProps {
@@ -10,9 +11,27 @@ interface FeaturedAlbumProps {
 
 export function FeaturedAlbum({ album, hovered }: FeaturedAlbumProps) {
   const [imageFailed, setImageFailed] = useState(false)
+  const [spotifyId, setSpotifyId] = useState<string | null>(null)
+  const [spotifyLoading, setSpotifyLoading] = useState(false)
 
   useEffect(() => {
     setImageFailed(false)
+  }, [album?.id])
+
+  useEffect(() => {
+    setSpotifyId(null)
+    if (!album) return
+
+    let cancelled = false
+    setSpotifyLoading(true)
+    searchSpotifyAlbum(album.artist, album.title).then((id) => {
+      if (cancelled) return
+      setSpotifyId(id)
+      setSpotifyLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [album?.id])
 
   if (!album) {
@@ -84,7 +103,7 @@ export function FeaturedAlbum({ album, hovered }: FeaturedAlbumProps) {
               Comprar más barato
             </a>
           )}
-          {!album.spotifyId && (
+          {!spotifyLoading && !spotifyId && (
             <a
               href={`https://open.spotify.com/search/${spotifyQuery}`}
               target="_blank"
@@ -96,11 +115,15 @@ export function FeaturedAlbum({ album, hovered }: FeaturedAlbumProps) {
           )}
         </div>
 
-        {album.spotifyId && (
+        {spotifyLoading && (
+          <p className="mt-4 text-sm text-neutral-500">Buscando en Spotify...</p>
+        )}
+
+        {spotifyId && (
           <iframe
-            key={album.spotifyId}
+            key={spotifyId}
             title={`Reproductor de Spotify: ${album.artist} - ${album.title}`}
-            src={`https://open.spotify.com/embed/album/${album.spotifyId}?utm_source=generator&theme=0`}
+            src={`https://open.spotify.com/embed/album/${spotifyId}?utm_source=generator&theme=0`}
             width="100%"
             height="152"
             className="mt-4 rounded-xl"
