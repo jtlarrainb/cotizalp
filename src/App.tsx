@@ -106,7 +106,17 @@ function App() {
               />
             </h1>
             {catalog?.updatedAt && (
-              <span className="text-xs text-neutral-500">Actualizado: {catalog.updatedAt}</span>
+              <span className="text-xs text-neutral-500">
+                Actualizado: {catalog.updatedAt} ·{' '}
+                <a
+                  href="https://github.com/jtlarrainb"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-white hover:underline"
+                >
+                  @jtlarrainb
+                </a>
+              </span>
             )}
           </div>
           <FeaturedAlbum album={selected} hovered={heroHovered} />
