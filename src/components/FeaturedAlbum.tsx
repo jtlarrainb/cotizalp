@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Album } from '@/types'
 import { cn, formatPrice } from '@/lib/utils'
-import { searchSpotifyAlbum } from '@/lib/spotify'
+import { loadSpotifyIframeApi, searchSpotifyAlbum, type SpotifyEmbedController } from '@/lib/spotify'
 import { stripRetailNoise } from '@/lib/retailNoise.mjs'
 import { VinylDisc } from './VinylDisc'
 
@@ -14,6 +14,8 @@ export function FeaturedAlbum({ album, hovered }: FeaturedAlbumProps) {
   const [imageFailed, setImageFailed] = useState(false)
   const [spotifyId, setSpotifyId] = useState<string | null>(null)
   const [spotifyLoading, setSpotifyLoading] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [embedNode, setEmbedNode] = useState<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setImageFailed(false)
@@ -35,6 +37,41 @@ export function FeaturedAlbum({ album, hovered }: FeaturedAlbumProps) {
     }
   }, [album?.id])
 
+  // Crea el reproductor embebido vía la IFrame API (en vez de un <iframe src>
+  // plano) para poder escuchar su estado de reproducción y hacer girar el
+  // vinilo del header mientras suena la música.
+  useEffect(() => {
+    setIsPlaying(false)
+    if (!spotifyId || !embedNode) return
+
+    let cancelled = false
+    let controller: SpotifyEmbedController | null = null
+
+    loadSpotifyIframeApi().then((IFrameAPI) => {
+      if (cancelled) return
+      IFrameAPI.createController(
+        embedNode,
+        { uri: `spotify:album:${spotifyId}`, width: '100%', height: 80 },
+        (embedController) => {
+          if (cancelled) {
+            embedController.destroy?.()
+            return
+          }
+          controller = embedController
+          controller.addListener('playback_update', (e) => {
+            setIsPlaying(!e.data.isPaused)
+          })
+        },
+      )
+    })
+
+    return () => {
+      cancelled = true
+      controller?.removeListener('playback_update')
+      controller?.destroy?.()
+    }
+  }, [spotifyId, embedNode])
+
   if (!album) {
     return (
       <div className="flex h-40 items-center justify-center text-sm text-neutral-500">
@@ -55,7 +92,7 @@ export function FeaturedAlbum({ album, hovered }: FeaturedAlbumProps) {
         <div
           className={cn(
             'absolute top-1/2 right-0 h-40 w-40 -translate-y-1/2 transition-transform duration-500 ease-out sm:h-48 sm:w-48',
-            hovered ? 'translate-x-0' : '-translate-x-16',
+            hovered || isPlaying ? 'translate-x-0' : '-translate-x-16',
           )}
         >
           <VinylDisc image={album.image} spinning className="h-full w-full" />
@@ -124,17 +161,9 @@ export function FeaturedAlbum({ album, hovered }: FeaturedAlbumProps) {
         )}
 
         {spotifyId && (
-          <iframe
-            key={spotifyId}
-            title={`Reproductor de Spotify: ${album.artist} - ${album.title}`}
-            src={`https://open.spotify.com/embed/album/${spotifyId}?utm_source=generator&theme=0`}
-            width="100%"
-            height="80"
-            className="mt-4 rounded-xl"
-            style={{ border: 0 }}
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-          />
+          <div className="mt-4 overflow-hidden rounded-xl" style={{ minHeight: 80 }}>
+            <div key={spotifyId} ref={setEmbedNode} />
+          </div>
         )}
 
         {album.listings.length > 1 && (

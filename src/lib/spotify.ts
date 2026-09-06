@@ -97,3 +97,48 @@ export async function searchSpotifyAlbum(artist: string, title: string): Promise
     return null
   }
 }
+
+export interface SpotifyPlaybackUpdate {
+  data: { isPaused: boolean; isBuffering: boolean; position: number; duration: number }
+}
+
+export interface SpotifyEmbedController {
+  addListener(event: 'playback_update', callback: (e: SpotifyPlaybackUpdate) => void): void
+  removeListener(event: 'playback_update'): void
+  destroy?: () => void
+}
+
+interface SpotifyIFrameAPI {
+  createController(
+    element: HTMLElement,
+    options: { uri: string; width?: string | number; height?: string | number },
+    callback: (controller: SpotifyEmbedController) => void,
+  ): void
+}
+
+declare global {
+  interface Window {
+    onSpotifyIframeApiReady?: (api: SpotifyIFrameAPI) => void
+  }
+}
+
+let iframeApiPromise: Promise<SpotifyIFrameAPI> | null = null
+
+/**
+ * Carga (una sola vez) la IFrame API de Spotify, que permite crear el
+ * reproductor embebido programáticamente y escuchar su estado de reproducción
+ * (a diferencia de un <iframe src=...> plano, del que no se puede leer nada
+ * por estar en otro origen).
+ */
+export function loadSpotifyIframeApi(): Promise<SpotifyIFrameAPI> {
+  if (!iframeApiPromise) {
+    iframeApiPromise = new Promise((resolve) => {
+      window.onSpotifyIframeApiReady = (api) => resolve(api)
+      const script = document.createElement('script')
+      script.src = 'https://open.spotify.com/embed/iframe-api/v1'
+      script.async = true
+      document.body.appendChild(script)
+    })
+  }
+  return iframeApiPromise
+}
