@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Album } from '@/types'
 import { cn, formatPrice } from '@/lib/utils'
-import { searchSpotifyAlbum } from '@/lib/spotify'
+import { searchSpotifyAlbum, stripRetailNoise } from '@/lib/spotify'
 import { VinylDisc } from './VinylDisc'
 
 interface FeaturedAlbumProps {
@@ -43,7 +43,9 @@ export function FeaturedAlbum({ album, hovered }: FeaturedAlbumProps) {
   }
 
   const cheapest = album.listings[0]
-  const spotifyQuery = encodeURIComponent(`${album.artist} ${album.title}`)
+  const spotifyQuery = encodeURIComponent(
+    `${stripRetailNoise(album.artist)} ${stripRetailNoise(album.title)}`,
+  )
 
   return (
     <div className="grid gap-6 sm:grid-cols-[auto_1fr] sm:items-center">

@@ -38,6 +38,28 @@ function cacheKeyFor(artist: string, title: string) {
   return `${artist.trim().toUpperCase()}|||${title.trim().toUpperCase()}`
 }
 
+/**
+ * Quita anotaciones que las tiendas agregan al nombre del disco y que no son
+ * parte del título/artista real (preventa, cantidad de LPs, color de vinilo,
+ * edición de aniversario, etc.), porque ensucian la búsqueda en Spotify: p. ej.
+ * "MTV UNPLUGGED (30TH ANNIVERSARY) (BLACK VINYL) (2LP)" no matchea nada, pero
+ * "MTV UNPLUGGED" sí. Estas anotaciones casi siempre van entre paréntesis/
+ * corchetes al final, o como sufijo suelto tipo "... 2LP" o "... 1 LP".
+ */
+export function stripRetailNoise(text: string): string {
+  let cleaned = text.replace(/\(\s*preventa\s*\)/gi, ' ')
+
+  const markerIndex = cleaned.search(/[([]/)
+  if (markerIndex > 0) {
+    cleaned = cleaned.slice(0, markerIndex)
+  }
+
+  cleaned = cleaned.replace(/\s*\d{0,2}\s?lp\.?$/i, '')
+  cleaned = cleaned.replace(/\s+/g, ' ').trim()
+
+  return cleaned || text.trim()
+}
+
 let tokenPromise: Promise<string> | null = null
 let tokenExpiresAt = 0
 
@@ -67,7 +89,10 @@ async function getAccessToken(): Promise<string> {
 export async function searchSpotifyAlbum(artist: string, title: string): Promise<string | null> {
   if (!CLIENT_ID || !CLIENT_SECRET) return null
 
-  const key = cacheKeyFor(artist, title)
+  const cleanArtist = stripRetailNoise(artist)
+  const cleanTitle = stripRetailNoise(title)
+
+  const key = cacheKeyFor(cleanArtist, cleanTitle)
   const cache = readCache()
   const cached = cache[key]
   if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
@@ -76,7 +101,7 @@ export async function searchSpotifyAlbum(artist: string, title: string): Promise
 
   try {
     const token = await getAccessToken()
-    const q = encodeURIComponent(`album:${title} artist:${artist}`)
+    const q = encodeURIComponent(`album:${cleanTitle} artist:${cleanArtist}`)
     const res = await fetch(`https://api.spotify.com/v1/search?type=album&limit=1&q=${q}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
