@@ -125,7 +125,7 @@ export function FeaturedAlbum({ album, hovered }: FeaturedAlbumProps) {
             title={`Reproductor de Spotify: ${album.artist} - ${album.title}`}
             src={`https://open.spotify.com/embed/album/${spotifyId}?utm_source=generator&theme=0`}
             width="100%"
-            height="152"
+            height="80"
             className="mt-4 rounded-xl"
             style={{ border: 0 }}
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
