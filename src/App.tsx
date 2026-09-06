@@ -45,6 +45,7 @@ function App() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [selected, setSelected] = useState<Album | null>(null)
   const [heroHovered, setHeroHovered] = useState(false)
+  const [sentinelNode, setSentinelNode] = useState<HTMLDivElement | null>(null)
 
   // Debounce de búsqueda para no filtrar ~19k discos en cada pulsación
   useEffect(() => {
@@ -59,6 +60,22 @@ function App() {
   useEffect(() => {
     setVisibleCount(PAGE_SIZE)
   }, [query, sortBy])
+
+  // Scroll infinito: cuando el centinela al fondo de la grilla entra en
+  // pantalla, se revela la siguiente página en vez de requerir un click.
+  useEffect(() => {
+    if (!sentinelNode) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisibleCount((c) => c + PAGE_SIZE)
+        }
+      },
+      { rootMargin: '600px 0px' },
+    )
+    observer.observe(sentinelNode)
+    return () => observer.disconnect()
+  }, [sentinelNode])
 
   const filteredAndSorted = useMemo(() => {
     if (!catalog) return []
@@ -177,14 +194,8 @@ function App() {
             )}
 
             {visibleCount < filteredAndSorted.length && (
-              <div className="mt-8 flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                  className="rounded-full border border-white/15 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10"
-                >
-                  Cargar más
-                </button>
+              <div ref={setSentinelNode} className="mt-8 flex justify-center py-4">
+                <span className="text-sm text-neutral-500">Cargando más discos...</span>
               </div>
             )}
           </>
