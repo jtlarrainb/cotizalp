@@ -26,13 +26,14 @@ function groupLabelFor(album: Album, sortBy: SortOption): string | null {
   }
 }
 
+const MIN_STORES_FOR_FEATURED = 5
+
+/** Elige al azar un disco en vitrina entre los que tienen varias tiendas (y portada). */
 function pickDefaultFeatured(albums: Album[]): Album | null {
-  if (albums.length === 0) return null
-  let best = albums[0]
-  for (const album of albums) {
-    if (album.image && album.storeCount > best.storeCount) best = album
-  }
-  return best
+  const candidates = albums.filter((a) => a.image && a.storeCount > MIN_STORES_FOR_FEATURED)
+  const pool = candidates.length > 0 ? candidates : albums
+  if (pool.length === 0) return null
+  return pool[Math.floor(Math.random() * pool.length)]
 }
 
 function App() {
