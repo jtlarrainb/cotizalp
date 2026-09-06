@@ -5,6 +5,8 @@
 // Si el sitio alguna vez se comparte más ampliamente, esto debería moverse a
 // un proxy (Cloudflare Worker u otro) para no exponer el secreto.
 
+import { stripRetailNoise } from './retailNoise.mjs'
+
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID as string | undefined
 const CLIENT_SECRET = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET as string | undefined
 
@@ -36,28 +38,6 @@ function writeCache(cache: Record<string, CacheEntry>) {
 
 function cacheKeyFor(artist: string, title: string) {
   return `${artist.trim().toUpperCase()}|||${title.trim().toUpperCase()}`
-}
-
-/**
- * Quita anotaciones que las tiendas agregan al nombre del disco y que no son
- * parte del título/artista real (preventa, cantidad de LPs, color de vinilo,
- * edición de aniversario, etc.), porque ensucian la búsqueda en Spotify: p. ej.
- * "MTV UNPLUGGED (30TH ANNIVERSARY) (BLACK VINYL) (2LP)" no matchea nada, pero
- * "MTV UNPLUGGED" sí. Estas anotaciones casi siempre van entre paréntesis/
- * corchetes al final, o como sufijo suelto tipo "... 2LP" o "... 1 LP".
- */
-export function stripRetailNoise(text: string): string {
-  let cleaned = text.replace(/\(\s*preventa\s*\)/gi, ' ')
-
-  const markerIndex = cleaned.search(/[([]/)
-  if (markerIndex > 0) {
-    cleaned = cleaned.slice(0, markerIndex)
-  }
-
-  cleaned = cleaned.replace(/\s*\d{0,2}\s?lp\.?$/i, '')
-  cleaned = cleaned.replace(/\s+/g, ' ').trim()
-
-  return cleaned || text.trim()
 }
 
 let tokenPromise: Promise<string> | null = null

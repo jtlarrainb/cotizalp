@@ -13,6 +13,7 @@ import { parse } from 'csv-parse/sync'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { splitRetailNoise } from '../src/lib/retailNoise.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const SPREADSHEET_ID = '1S4DJqsvi9qVB5pgiliHAGwXDXCj1qPZ6940WKaYuVt4'
@@ -108,15 +109,24 @@ for (const record of records) {
   const imageRaw = (record.Imagen ?? '').trim()
   const image = PLACEHOLDER_IMAGE.has(imageRaw.toUpperCase()) ? null : imageRaw
 
-  const key = `${normalizeKey(artistRaw)}|||${normalizeKey(titleRaw)}`
+  // Distintas tiendas listan el mismo álbum con anotaciones de formato/color/
+  // preventa distintas ("(2LP)", "(BLACK VINYL)", "(PREVENTA)"...). Agrupamos
+  // por el nombre limpio para no mostrarlos como discos separados, pero
+  // guardamos la anotación por listado para no perder esa info.
+  const artistSplit = splitRetailNoise(artistRaw)
+  const titleSplit = splitRetailNoise(titleRaw)
+  const variant = [artistSplit.variant, titleSplit.variant].filter(Boolean).join(' ') || null
+  const preventa = artistSplit.preventa || titleSplit.preventa
+
+  const key = `${normalizeKey(artistSplit.clean)}|||${normalizeKey(titleSplit.clean)}`
 
   let group = groups.get(key)
   if (!group) {
-    group = { artist: artistRaw, title: titleRaw, listings: [] }
+    group = { artist: artistSplit.clean, title: titleSplit.clean, listings: [] }
     groups.set(key, group)
   }
 
-  group.listings.push({ store, price, url, image })
+  group.listings.push({ store, price, url, image, variant, preventa })
 }
 
 const albums = []

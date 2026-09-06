@@ -3,6 +3,10 @@ export interface Listing {
   price: number | null
   url: string | null
   image: string | null
+  /** Anotación de formato/color/edición que traía este listado (p. ej. "(2LP) (BLACK VINYL)"). */
+  variant: string | null
+  /** Si esta tienda lo tiene marcado como preventa. */
+  preventa: boolean
 }
 
 export interface Album {

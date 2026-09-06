@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { Album } from '@/types'
 import { cn, formatPrice } from '@/lib/utils'
-import { searchSpotifyAlbum, stripRetailNoise } from '@/lib/spotify'
+import { searchSpotifyAlbum } from '@/lib/spotify'
+import { stripRetailNoise } from '@/lib/retailNoise.mjs'
 import { VinylDisc } from './VinylDisc'
 
 interface FeaturedAlbumProps {
@@ -147,7 +148,16 @@ export function FeaturedAlbum({ album, hovered }: FeaturedAlbumProps) {
                   key={`${listing.store}-${i}`}
                   className="flex items-center justify-between gap-3 border-b border-white/5 py-1"
                 >
-                  <span className="truncate">{listing.store}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate">{listing.store}</span>
+                    {(listing.variant || listing.preventa) && (
+                      <span className="block truncate text-xs text-neutral-500">
+                        {listing.preventa && 'Preventa'}
+                        {listing.preventa && listing.variant && ' · '}
+                        {listing.variant}
+                      </span>
+                    )}
+                  </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <span>{formatPrice(listing.price)}</span>
                     {listing.url && (
