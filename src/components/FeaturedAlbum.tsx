@@ -8,9 +8,11 @@ import { VinylDisc } from './VinylDisc'
 interface FeaturedAlbumProps {
   album: Album | null
   hovered: boolean
+  /** 'sidebar' apila portada y datos en una sola columna angosta; 'bar' los pone lado a lado. */
+  layout?: 'bar' | 'sidebar'
 }
 
-export function FeaturedAlbum({ album, hovered }: FeaturedAlbumProps) {
+export function FeaturedAlbum({ album, hovered, layout = 'bar' }: FeaturedAlbumProps) {
   const [imageFailed, setImageFailed] = useState(false)
   const [spotifyId, setSpotifyId] = useState<string | null>(null)
   const [spotifyLoading, setSpotifyLoading] = useState(false)
@@ -86,7 +88,12 @@ export function FeaturedAlbum({ album, hovered }: FeaturedAlbumProps) {
   )
 
   return (
-    <div className="grid gap-6 sm:grid-cols-[auto_1fr] sm:items-center">
+    <div
+      className={cn(
+        'grid gap-6',
+        layout === 'sidebar' ? 'grid-cols-1' : 'sm:grid-cols-[auto_1fr] sm:items-center',
+      )}
+    >
       <div className="relative mx-auto h-40 w-56 sm:h-48 sm:w-64">
         {/* Disco de vinilo: detrás de la portada en reposo, se desliza a la derecha con el hover */}
         <div

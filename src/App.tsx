@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
+import { PanelLeft, PanelTop } from 'lucide-react'
 import type { Album } from '@/types'
 import { useCatalog } from '@/hooks/useCatalog'
 import { FeaturedAlbum } from '@/components/FeaturedAlbum'
@@ -26,6 +27,16 @@ function groupLabelFor(album: Album, sortBy: SortOption): string | null {
   }
 }
 
+const PANEL_LAYOUT_KEY = 'cotizalp:panel-horizontal'
+
+function readStoredPanelHorizontal(): boolean {
+  try {
+    return localStorage.getItem(PANEL_LAYOUT_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 const MIN_STORES_FOR_FEATURED = 5
 
 /** Elige al azar un disco en vitrina entre los que tienen varias tiendas (y portada). */
@@ -46,6 +57,19 @@ function App() {
   const [selected, setSelected] = useState<Album | null>(null)
   const [heroHovered, setHeroHovered] = useState(false)
   const [sentinelNode, setSentinelNode] = useState<HTMLDivElement | null>(null)
+  const [panelHorizontal, setPanelHorizontal] = useState(readStoredPanelHorizontal)
+
+  const togglePanelLayout = () => {
+    setPanelHorizontal((v) => {
+      const next = !v
+      try {
+        localStorage.setItem(PANEL_LAYOUT_KEY, next ? '1' : '0')
+      } catch {
+        // localStorage no disponible (modo privado): no es crítico
+      }
+      return next
+    })
+  }
 
   // Debounce de búsqueda para no filtrar ~19k discos en cada pulsación
   useEffect(() => {
@@ -108,14 +132,21 @@ function App() {
   const visibleAlbums = filteredAndSorted.slice(0, visibleCount)
 
   return (
-    <div className="min-h-screen text-neutral-100">
+    <div className={cn('min-h-screen text-neutral-100', !panelHorizontal && 'lg:flex')}>
       <header
         onMouseEnter={() => setHeroHovered(true)}
         onMouseLeave={() => setHeroHovered(false)}
-        className="sticky top-0 z-20 border-b border-white/10 bg-neutral-950/80 backdrop-blur"
+        className={cn(
+          'border-white/10 bg-neutral-950/80 backdrop-blur',
+          panelHorizontal
+            ? 'sticky top-0 z-20 border-b'
+            : 'border-b lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-b-0 xl:w-96',
+        )}
       >
-        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6">
-          <div className="mb-4 flex items-baseline justify-between">
+        <div
+          className={cn('px-4 py-5 sm:px-6', panelHorizontal && 'mx-auto max-w-6xl')}
+        >
+          <div className="mb-4 flex items-start justify-between gap-2">
             <h1>
               <TextReveal
                 text="CotizaLP"
@@ -123,25 +154,46 @@ function App() {
                 className="text-lg font-bold tracking-tight"
               />
             </h1>
-            {catalog?.updatedAt && (
-              <span className="text-xs text-neutral-500">
-                Actualizado: {catalog.updatedAt} ·{' '}
-                <a
-                  href="https://github.com/jtlarrainb"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-white hover:underline"
-                >
-                  @jtlarrainb
-                </a>
-              </span>
-            )}
+            <button
+              type="button"
+              onClick={togglePanelLayout}
+              title={panelHorizontal ? 'Poner panel vertical' : 'Poner panel horizontal'}
+              className="shrink-0 rounded-full border border-white/15 p-1.5 text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              {panelHorizontal ? (
+                <PanelLeft className="h-4 w-4" />
+              ) : (
+                <PanelTop className="h-4 w-4" />
+              )}
+            </button>
           </div>
-          <FeaturedAlbum album={selected} hovered={heroHovered} />
+          {catalog?.updatedAt && (
+            <p className="mb-4 -mt-2 text-xs text-neutral-500">
+              Actualizado: {catalog.updatedAt} ·{' '}
+              <a
+                href="https://github.com/jtlarrainb"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-white hover:underline"
+              >
+                @jtlarrainb
+              </a>
+            </p>
+          )}
+          <FeaturedAlbum
+            album={selected}
+            hovered={heroHovered}
+            layout={panelHorizontal ? 'bar' : 'sidebar'}
+          />
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      <main
+        className={cn(
+          'px-4 py-6 sm:px-6',
+          panelHorizontal ? 'mx-auto max-w-6xl' : 'mx-auto max-w-6xl lg:mx-0 lg:max-w-none lg:flex-1',
+        )}
+      >
         {loading && <p className="py-12 text-center text-neutral-500">Cargando catálogo...</p>}
 
         {error && (
