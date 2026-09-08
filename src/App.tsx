@@ -140,13 +140,16 @@ function App() {
           'border-white/10 bg-neutral-950/80 backdrop-blur',
           panelHorizontal
             ? 'sticky top-0 z-20 border-b'
-            : 'border-b lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:w-80 lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-b-0 xl:w-96',
+            : 'flex flex-col border-b lg:sticky lg:top-0 lg:z-20 lg:h-screen lg:w-80 lg:shrink-0 lg:border-r lg:border-b-0 xl:w-96',
         )}
       >
         <div
-          className={cn('px-4 py-5 sm:px-6', panelHorizontal && 'mx-auto max-w-6xl')}
+          className={cn(
+            'px-4 py-5 sm:px-6',
+            panelHorizontal ? 'mx-auto max-w-6xl' : 'lg:flex-1 lg:overflow-y-auto',
+          )}
         >
-          <div className="mb-4 flex items-start justify-between gap-2">
+          <div className="mb-4 flex items-center justify-between gap-3">
             <h1>
               <TextReveal
                 text="CotizaLP"
@@ -154,38 +157,54 @@ function App() {
                 className="text-lg font-bold tracking-tight"
               />
             </h1>
-            <button
-              type="button"
-              onClick={togglePanelLayout}
-              title={panelHorizontal ? 'Poner panel vertical' : 'Poner panel horizontal'}
-              className="shrink-0 rounded-full border border-white/15 p-1.5 text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              {panelHorizontal ? (
-                <PanelLeft className="h-4 w-4" />
-              ) : (
-                <PanelTop className="h-4 w-4" />
+            <div className="flex items-center gap-3">
+              {panelHorizontal && catalog?.updatedAt && (
+                <span className="text-right text-xs text-neutral-500">
+                  Actualizado: {catalog.updatedAt} ·{' '}
+                  <a
+                    href="https://github.com/jtlarrainb"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:text-white hover:underline"
+                  >
+                    @jtlarrainb
+                  </a>
+                </span>
               )}
-            </button>
-          </div>
-          {catalog?.updatedAt && (
-            <p className="mb-4 -mt-2 text-xs text-neutral-500">
-              Actualizado: {catalog.updatedAt} ·{' '}
-              <a
-                href="https://github.com/jtlarrainb"
-                target="_blank"
-                rel="noreferrer"
-                className="hover:text-white hover:underline"
+              <button
+                type="button"
+                onClick={togglePanelLayout}
+                title={panelHorizontal ? 'Poner panel vertical' : 'Poner panel horizontal'}
+                className="shrink-0 rounded-full border border-white/15 p-1.5 text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
               >
-                @jtlarrainb
-              </a>
-            </p>
-          )}
+                {panelHorizontal ? (
+                  <PanelLeft className="h-4 w-4" />
+                ) : (
+                  <PanelTop className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </div>
           <FeaturedAlbum
             album={selected}
             hovered={heroHovered}
             layout={panelHorizontal ? 'bar' : 'sidebar'}
           />
         </div>
+
+        {!panelHorizontal && catalog?.updatedAt && (
+          <div className="shrink-0 border-t border-white/10 px-4 py-2 text-center text-xs text-neutral-500 sm:px-6">
+            Actualizado: {catalog.updatedAt} ·{' '}
+            <a
+              href="https://github.com/jtlarrainb"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-white hover:underline"
+            >
+              @jtlarrainb
+            </a>
+          </div>
+        )}
       </header>
 
       <main
