@@ -174,7 +174,7 @@ export function FeaturedAlbum({ album, hovered, layout = 'bar' }: FeaturedAlbumP
         )}
 
         {album.listings.length > 1 && (
-          <details className="mt-4 text-sm text-neutral-400">
+          <details className="mt-4 text-sm text-neutral-400" open={layout === 'sidebar'}>
             <summary className="cursor-pointer text-neutral-300 hover:text-white">
               Ver precios en las {album.storeCount} tiendas
             </summary>
