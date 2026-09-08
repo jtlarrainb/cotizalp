@@ -178,7 +178,12 @@ export function FeaturedAlbum({ album, hovered, layout = 'bar' }: FeaturedAlbumP
             <summary className="cursor-pointer text-neutral-300 hover:text-white">
               Ver precios en las {album.storeCount} tiendas
             </summary>
-            <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto pr-2">
+            <ul
+              className={cn(
+                'mt-2 space-y-1 pr-2',
+                layout === 'sidebar' ? '' : 'max-h-48 overflow-y-auto',
+              )}
+            >
               {album.listings.map((listing, i) => (
                 <li
                   key={`${listing.store}-${i}`}
